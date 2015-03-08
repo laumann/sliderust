@@ -1,10 +1,41 @@
-% My magnificent slides
+% Memory, ownership and lifetimes
 
-Keegan McAllister
+<div style="text-align: center; margin-top: 120px">
+<img src="http://www.rust-lang.org/logos/rust-logo-256x256-blk.png">
+</div>
 
-October 16, 2014
+<span style="font-size: 16pt">Thomas Bracht Laumann Jespersen</span>
+<br />
+<span style="font-size: 14pt">March 18, 2015</span>
 
-# Hello, world!
+# The dangers of C++
+
+```rust
+{
+  map<int, Record> m;
+  m[1] = ...;
+  ...
+  Record &r = m[i];
+  return r;
+}
+```
+
+# Why Rust?
+
+* Want to guarantee memory safety
+
+# Goals of Rust
+
+* Support **efficient patters**
+* Prevent **dangling pointers**, **memory leaks** and **data races**
+*
+
+# Memory management
+
+* Want control, like `malloc()` and `free()`, but...
+* avoid problems such as double frees, dangling pointers, etc
+* GC solves these problems, but takes away control
+* The Rust Way: Ownership and borrowing
 
 It's so easy!
 
@@ -32,6 +63,4 @@ error: mismatched types: expected `&'a html5ever::tokenizer::Tokenizer<html5ever
 
 # Very good then
 
-<div style="text-align: center; margin-top: 120px">
-<img src="http://www.rust-lang.org/logos/rust-logo-256x256-blk.png">
-</div>
+Empty slide
