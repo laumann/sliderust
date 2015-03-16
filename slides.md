@@ -127,9 +127,7 @@ fn foo() {
 * Enough to prevent data races
 * Compiler knows exactly when a given piece of memory can be dropped
 
-
-
-# Lifetime of borrow
+# Lifetimes
 ```rust
 fn add_one(v: &mut u32) { // -+ Borrow exists
     *x += 1;              //  | for duration
@@ -140,4 +138,50 @@ fn foo() {
 	add_one(&mut x);      // Borrow happens here
 	println!("{}", x);
 }
+```
+
+# Lifetimes
+
+```rust
+fn add_one<'a>(v: &'a mut u32) {
+    *x += 1;
+}
+```
+* Most of the time `rustc` can infer lifetimes
+
+# Lifetimes
+
+```rust
+struct Foo {
+	x: &u32
+}
+```
+Result:
+<pre>
+&lt;anon&gt;:2:8: 2:12 error: missing lifetime specifier [E0106]
+&lt;anon&gt;:2     x: &amp;u32
+                &#94;~~~
+</pre>
+
+Instead:
+
+```rust
+struct Foo<'a> {
+	x: &'a u32
+}
+```
+
+# Lifetimes
+```rust
+struct Foo<'a> {
+	x: &'a u32
+}
+
+fn foo() {
+    let y = &5;           // -+   lifetime of y starts here
+	let f = Foo { x: y }; //  |-+ lifetime of f starts here
+	                      //  | |
+    // use values here    //  | |
+}                         // -+-+ lifetimes of y and f end here
+
 ```
