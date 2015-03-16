@@ -121,18 +121,23 @@ fn foo() {
 	println!("{}", x);
 }
 ```
-Result:
-<pre>
-6
-</pre>
-
-
-# References
-
 * `&` is borrowed, immutable reference
 * `&mut` is borrowed, mutable reference
 * Enforced at compile-time
 * Enough to prevent data races
 * Compiler knows exactly when a given piece of memory can be dropped
 
-#
+
+
+# Lifetime of borrow
+```rust
+fn add_one(v: &mut u32) { // -+ Borrow exists
+    *x += 1;              //  | for duration
+}                         // -+ of `add_one`
+
+fn foo() {
+    let mut x = 5;
+	add_one(&mut x);      // Borrow happens here
+	println!("{}", x);
+}
+```
