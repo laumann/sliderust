@@ -5,62 +5,134 @@
 </div>
 
 <span style="font-size: 16pt">Thomas Bracht Laumann Jespersen</span>
-<br />
+<br>
 <span style="font-size: 14pt">March 18, 2015</span>
 
-# The dangers of C++
+# What's your killer Rust feature?
 
-```rust
-{
-  map<int, Record> m;
-  m[1] = ...;
-  ...
-  Record &r = m[i];
-  return r;
-}
-```
+- What novel features does Rust bring?
+- Asked on [reddit.com/r/rust](https://www.reddit.com/r/rust/comments/2x0h17/whats_your_killer_rust_feature/)
+  * borrow checker!
+  * _``I don't have to worry about aliasing anymore''_
 
-# Why Rust?
+# Memory Management (1)
 
 * Want to guarantee memory safety
+* Manual: Complete control, but error-prone
+* GC: Less control, but safer. Requires a runtime
+* Region-based: Cyclone
 
-# Goals of Rust
-
-* Support **efficient patters**
-* Prevent **dangling pointers**, **memory leaks** and **data races**
-*
-
-# Memory management
-
-* Want control, like `malloc()` and `free()`, but...
-* avoid problems such as double frees, dangling pointers, etc
-* GC solves these problems, but takes away control
-* The Rust Way: Ownership and borrowing
-
-It's so easy!
-
-```rust
-fn main() {
-    println!("Hello, world!");
+# Memory Management (2)
+```
+void foo() {
+    int *x = (int*)malloc(sizeof(int));
+	*x = 5;
+	printf("%d\n", *x);
 }
 ```
 
-# Rust is
+# Memory Management (3)
+```
+void foo() {
+	int *x = (int*)malloc(sizeof(int));
+	*x = 5;
+	free(x);
+	printf("%d\n", *x);
+}
 
-a systems programming language that
-
-* runs blazingly fast,
-* prevents almost all crashes, and
-* eliminates data races.
-
-Show me more!
-
-# A true C++ replacement
-
-```text
-error: mismatched types: expected `&'a html5ever::tokenizer::Tokenizer<html5ever::tree_builder::TreeBuilder<dom::node::TrustedNodeAddress,dom::servohtmlparser::Sink>>`, found `&core::cell::RefCell<html5ever::tokenizer::Tokenizer<html5ever::tree_builder::TreeBuilder<dom::node::TrustedNodeAddress,dom::servohtmlparser::Sink>>>`
 ```
 
-# Very good then
+# Memory Management (3)
+```
+void foo() {
+	int *x = (int*)malloc(sizeof(int));
+	*x = 5;
+	printf("%d\n", *x);
+    free(x);
+}
 
-Empty slide
+```
+
+# (Almost) The Same in Rust
+
+```rust
+fn foo() {
+    let x = Box::new(5); // Heap allocated
+	println!("{}", x);
+}
+```
+* `Box::new` allocates on heap
+* No need for `free()`
+* _lifetime_ of `x` is block of `foo`
+
+# Ownership
+```rust
+fn add_one(x: Box<u32>) {
+	*x += 1;
+}
+
+fn foo() {
+    let x = Box::new(5);
+	add_one(x);
+	println!("{}", x);
+}
+```
+Result:
+<pre>
+&lt;anon&gt;:8:19: 8:20 error: use of moved value: `x`
+&lt;anon&gt;:8 	println!("{:?}", x);
+                           &#94;
+</pre>
+
+* Rule #1: Exactly one owner to some allocated memory
+* `add_one` "owns" the value.
+* Ownership can be transferred
+
+
+# Give it back
+```rust
+fn add_one(mut x: Box<u32>) -> Box<u32> {
+    *x += 1;
+	x
+}
+
+fn foo() {
+    let x = Box::new(5);
+	let y = add_one(x);
+	println!("{}", y);
+}
+```
+Result:
+<pre>
+6
+</pre>
+
+* Works (yay!), but is this really necessary?
+
+# Just borrow it
+```rust
+fn add_one(v: &mut u32) {
+    *x += 1;
+}
+
+fn foo() {
+    let mut x = 5;
+	add_one(&mut x);
+	println!("{}", x);
+}
+```
+Result:
+<pre>
+6
+</pre>
+
+
+# References
+
+* `&` is borrowed, immutable reference
+* `&mut` is borrowed, mutable reference
+* Enforced at compile-time
+* Enough to prevent data races
+* Compiler knows exactly when a given piece of memory can be dropped
+
+#
