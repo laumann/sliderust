@@ -1,13 +1,5 @@
 % Memory, ownership and lifetimes
 
-<div style="text-align: center; margin-top: 120px">
-<img src="http://www.rust-lang.org/logos/rust-logo-256x256-blk.png">
-</div>
-
-<span style="font-size: 16pt">Thomas Bracht Laumann Jespersen</span>
-<br>
-<span style="font-size: 14pt">March 18, 2015</span>
-
 # What's your killer Rust feature?
 
 - Asked on [reddit.com/r/rust](https://www.reddit.com/r/rust/comments/2x0h17/whats_your_killer_rust_feature/)
@@ -23,134 +15,148 @@
 
 # Memory Management (2)
 ```
-void foo() {
-    int *x = (int*)malloc(sizeof(int));
-	*x = 5;
-	printf("%d\n", *x);
-}
-```
-* Problem: Remember to `free(x)`
-
-# Memory Management (3)
-```
-void foo() {
-	int *x = (int*)malloc(sizeof(int));
-	*x = 5;
+void helper(int *slot) {
+	printf("The number was %d\n", *slot);
 	free(x);
-	printf("%d\n", *x);
 }
 
-```
-* Oops
-
-# Memory Management (3)
-```
-void foo() {
-	int *x = (int*)malloc(sizeof(int));
-	*x = 5;
-	printf("%d\n", *x);
-    free(x);
+int main() {
+	int *slot = (int*)malloc(sizeof(int));
+	*slot = 5;
+	helper(slot);
+	helper(slot);
 }
-
 ```
 
 # (Almost) The Same in Rust
 
 ```rust
-fn foo() {
-    let x = Box::new(5); // Heap allocated
-	println!("{}", x);
-}
-```
-
-* `Box::new` allocates on heap
-* No need for `free()`
-* _lifetime_ of `x` is block of `foo`
-
-# Ownership
-
-```rust
-fn add_one(x: Box<u32>) {
-	*x += 1;
+fn helper(slot: Box<u32>) {
+	println!("The number was {}", slot);
 }
 
-fn foo() {
-    let x = Box::new(5);
-	add_one(x);
-	println!("{}", x);
+fn main() {
+    let slot = Box::new(5); // Heap allocated
+	helper(slot);           // `slot` moved here
+	helper(slot);
 }
 ```
 Result:
+
 <pre>
-&lt;anon&gt;:8:19: 8:20 error: use of moved value: `x`
-&lt;anon&gt;:8 	println!("{:?}", x);
-                           &#94;
+&lt;anon&gt;:9:9: 9:13 error: use of moved value: `slot`
+&lt;anon&gt;:9 	helper(slot);
+                 &#94;~~~
+&lt;anon&gt;:8:9: 8:13 note: `slot` moved here because it has type `Box<u32>`, which is non-copyable
+&lt;anon&gt;:8 	helper(slot);
+                 &#94;~~~
 </pre>
+
+# Ownership
 
 * Rule #1: Exactly one owner to some allocated memory
 * Compiler knows exactly when a given piece of memory can be dropped
 * Ownership can be transferred
 
-# Give it back
 ```rust
-fn add_one(mut x: Box<u32>) -> Box<u32> {
-    *x += 1;
-	x
+fn helper() -> Box<u32> {
+	let slot = Box::new(5);
+	slot
 }
 
-fn foo() {
-    let x = Box::new(5);
-	let y = add_one(x);  // `x` moved
-	println!("{}", y);
+fn main() {
+	let boxed = helper(); // Acquire ownership of return value
+}
+```
+
+# Give it back!
+```rust
+fn helper(slot: Box<u32>) -> Box<u32> {
+	println!("The number was {}", slot);
+	slot
+}
+
+fn main() {
+    let slot = Box::new(5);
+	let slot = helper(slot);
+	helper(slot);
 }
 ```
 Result:
+
 <pre>
-6
+The number was 5
+The number was 5
 </pre>
 
-* Works (yay!), but is this really necessary?
-
-# Just borrow it
+# Borrowing
 ```rust
-fn add_one(v: &mut u32) {
-    *x += 1;
+fn helper(slot: &Box<u32>) {
+	println!("The number was {}", slot);
 }
 
-fn foo() {
-    let mut x = 5;
-	add_one(&mut x);
-	println!("{}", x);
-}
-```
-* `&` is borrowed, immutable reference
-* `&mut` is borrowed, mutable reference
-* Enforced at compile-time
-* Enough to prevent data races
-
-# Lifetimes
-```rust
-fn add_one(v: &mut u32) { // --+ Borrow exists
-    *x += 1;              //   | for duration
-}                         // --+ of `add_one`
-
-fn foo() {
-    let mut x = 5;
-	add_one(&mut x);      // Borrow happens here
-	println!("{}", x);
+fn main() {
+    let slot = Box::new(5);
+	helper(&slot);
+	helper(&slot);
 }
 ```
 
+Result:
+
+<pre>
+The number was 5
+The number was 5
+</pre>
+
+* `&` is a "borrowed reference"
+
+# Borrowing
+
+* Borrowing prevents moving
+
+```rust
+let v = Vec::new();
+let vref = &v;
+work_with(v);
+```
+
+Result:
+
+<pre>
+&lt;anon&gt;:7:15: 7:16 error: cannot move out of `v` because it is borrowed
+&lt;anon&gt;:7     work_with(v);
+                       ^
+&lt;anon&gt;:6:17: 6:18 note: borrow of `v` occurs here
+&lt;anon&gt;:6     let vref = &v;
+                         ^
+</pre>
+
+# Lifetimes
+```rust
+fn helper(x: &u32) {   // --+ Borrow exists
+    println!("{}", x); //   | for duration
+}                      // --+ of `helper`
+
+fn main() {
+    let mut x = 5;
+	helper(&x);      // Borrow happens here
+	x += 1;
+	helper(&x);
+}
+```
+
 # Lifetimes
 
 ```rust
-fn add_one<'a>(v: &'a mut u32) {
-    *x += 1;
+fn helper<'a>(x: &'a u32) {
+    println!("{}", x);
 }
+
 ```
 * Most of the time `rustc` can infer lifetimes
 
-# Lifetimes
+# Life & times
 
 ```rust
 struct Foo {
@@ -172,30 +178,78 @@ struct Foo<'a> {
 }
 ```
 
+# Thinking in scopes
+
+```rust
+let v = Vec::new();
+{
+	let vref = &v;       // --+
+	// work with `vref`  //   | lifetime of `vref`
+}                        // --+ ends here
+work_with(v);
+
+```
+
+* Common idiom: Introduce scope to narrow lifetime
+
 # Lifetimes
 ```rust
-struct Foo<'a> {
-	x: &'a u32
+struct Data {
+    x: u32
 }
 
-fn foo() {
-    let y = &5;           // -+   lifetime of y starts here
-	let f = Foo { x: y }; //  |-+ lifetime of f starts here
-	                      //  | |
-    // use values here    //  | |
-}                         // -+-+ lifetimes of y and f end here
+fn main() {
+    let a = Data { x: 0 };
+    let b = Data { x: 1 };
 
+    if a.x > b.x {    // --+
+		process(&a)   //   | We want to pack
+	} else {          //   | all of this away
+	    process(&b);  //   |
+	}                 // --+
+}
 ```
 
 # Lifetimes
-* Common idiom: Introduce scope to narrow lifetime
 ```rust
-let mut a = b;
-{
-    let b = &a;         // --+
-    // do stuff with b  //   | Lifetime of `b`
-}                       // --+
+struct Data {
+    x: u32
+}
+
+fn pick_one(a: &Data, b: &Data) -> &Data {
+	if a.x > b.x { a } else { b }
+}
+
+fn main() {
+    let a = Data { x: 0 };
+    let b = Data { x: 1 };
+
+	let a_or_b = pick_one(&a, &b); // Points to either `a` or `b`
+
+	process(a_or_b);               // borrow of `a` and `b`
+}                                  // lasts until end
 ```
+
+# Lifetimes
+```rust
+struct Data {
+    x: u32
+}
+
+fn pick_one<'a>(a: &'a Data, b: &'a Data) -> &'a Data {
+	if a.x > b.x { a } else { b }
+}
+
+fn main() {
+    let a = Data { x: 0 };
+    let b = Data { x: 1 };
+
+	let a_or_b = pick_one(&a, &b); // Points to either `a` or `b`
+
+	process(a_or_b);               // borrow of `a` and `b`
+}                                  // lasts until end
+```
+
 
 # Concurrency
 
