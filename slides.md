@@ -10,7 +10,6 @@
 
 # What's your killer Rust feature?
 
-- What novel features does Rust bring?
 - Asked on [reddit.com/r/rust](https://www.reddit.com/r/rust/comments/2x0h17/whats_your_killer_rust_feature/)
   * borrow checker!
   * _``I don't have to worry about aliasing anymore''_
@@ -30,6 +29,7 @@ void foo() {
 	printf("%d\n", *x);
 }
 ```
+* Problem: Remember to `free(x)`
 
 # Memory Management (3)
 ```
@@ -41,6 +41,7 @@ void foo() {
 }
 
 ```
+* Oops
 
 # Memory Management (3)
 ```
@@ -61,11 +62,13 @@ fn foo() {
 	println!("{}", x);
 }
 ```
+
 * `Box::new` allocates on heap
 * No need for `free()`
 * _lifetime_ of `x` is block of `foo`
 
 # Ownership
+
 ```rust
 fn add_one(x: Box<u32>) {
 	*x += 1;
@@ -85,9 +88,8 @@ Result:
 </pre>
 
 * Rule #1: Exactly one owner to some allocated memory
-* `add_one` "owns" the value.
+* Compiler knows exactly when a given piece of memory can be dropped
 * Ownership can be transferred
-
 
 # Give it back
 ```rust
@@ -98,7 +100,7 @@ fn add_one(mut x: Box<u32>) -> Box<u32> {
 
 fn foo() {
     let x = Box::new(5);
-	let y = add_one(x);
+	let y = add_one(x);  // `x` moved
 	println!("{}", y);
 }
 ```
@@ -125,13 +127,12 @@ fn foo() {
 * `&mut` is borrowed, mutable reference
 * Enforced at compile-time
 * Enough to prevent data races
-* Compiler knows exactly when a given piece of memory can be dropped
 
 # Lifetimes
 ```rust
-fn add_one(v: &mut u32) { // -+ Borrow exists
-    *x += 1;              //  | for duration
-}                         // -+ of `add_one`
+fn add_one(v: &mut u32) { // --+ Borrow exists
+    *x += 1;              //   | for duration
+}                         // --+ of `add_one`
 
 fn foo() {
     let mut x = 5;
@@ -184,4 +185,25 @@ fn foo() {
     // use values here    //  | |
 }                         // -+-+ lifetimes of y and f end here
 
+```
+
+# Lifetimes
+* Common idiom: Introduce scope to narrow lifetime
+```rust
+let mut a = b;
+{
+    let b = &a;         // --+
+    // do stuff with b  //   | Lifetime of `b`
+}                       // --+
+```
+
+# Concurrency
+
+```rust
+let mut a = 3;
+
+spawn(move|| { // Moving closure
+    a += 1;    // executed in other thread
+});
+a += 1;        // error! `a` was moved
 ```
